@@ -1,0 +1,318 @@
+<html>
+<head>
+<script type="text/javascript">
+
+// Math classes & funcs
+
+function point2d(x, y)
+{
+	this.x = x;
+	this.y = y;
+	
+	this.scale = scale
+	this.assign = assign
+}
+
+function scale(s)
+{
+	with (this)
+	{
+		x = x * s;
+		y = y * s;
+	}
+}
+
+function assign(x_, y_)
+{
+	with (this)
+	{
+		x = x_;
+		y = y_;
+	}
+}
+
+function bezier_path(p0, p1, p2, p3)
+{
+	this.p0 = p0;
+	this.p1 = p1;
+	this.p2 = p2;
+	this.p3 = p3;
+}
+
+function ball(init_pos)
+{
+	this.pos = init_pos;
+	this.curr_c = 0; // current curve
+	this.curr_t = 0; // current t
+	this.curr_inc = 0; // current increment
+	
+	this.move = move;
+}
+
+function move()
+{
+	with (this)
+	{
+		pos = cubic_bezier( path[curr_c], curr_t );
+
+		if ( curr_t > 1 )
+		{
+			curr_c = (curr_c + 1 + path.length) % path.length;
+
+			curr_inc = 2 / curve_lengths[curr_c];
+			
+			curr_t = 0;
+		}
+	
+		curr_t += curr_inc;
+	}
+}
+
+function my_ball(elm_i)
+{
+	this.pos = new point2d(0, 0);
+	this.pos.assign( frog_head.x, frog_head.y );
+	
+	this.dir = new point2d(0, 0);
+	this.dir.assign( frog_vec.x, frog_vec.y );
+	
+	this.elm_i = elm_i;
+	
+	this.move = my_move;
+}
+
+speed = 5;
+function my_move()
+{
+	with (this)
+	{
+		pos.assign( pos.x + dir.x * 5, pos.y + dir.y * 5 );
+	}
+}
+
+function distance(p1, p2)
+{
+	return Math.sqrt( (p1.x - p2.x) * (p1.x - p2.x) +
+					  (p1.y - p2.y) * (p1.y - p2.y) );
+}
+
+function calculate_curve_length(bc)
+{
+	var len = 0;
+	var tp1 = new point2d(0,0),
+		tp2 = new point2d(0,0); // temporary points
+	
+	tp1 = cubic_bezier(bc, 0);
+	
+	for (f=0.01; f<1; f+=0.01)
+	{
+		tp2 = cubic_bezier(bc, f);
+		
+		len += distance( tp1, tp2 );
+		
+		tp1 = tp2; 
+	}
+	
+	debug(len);
+	
+	return len;
+}
+
+var path = Array (	new bezier_path( new point2d(5,5), new point2d(25,5), new point2d(45,25), new point2d(45,45) ),
+					new bezier_path( new point2d(45,45), new point2d(45,65), new point2d(65,85), new point2d(85,85) ),
+					new bezier_path( new point2d(85,85), new point2d(105,85), new point2d(125,105), new point2d(125,125) ),
+					new bezier_path( new point2d(125,125), new point2d(5,125), new point2d(5,125), new point2d(5,5) ) );
+
+// scaling path, test purposes
+var s = 3;
+for (i=0; i<path.length; i++)
+{
+	path[i].p0.scale(s);
+	path[i].p1.scale(s);
+	path[i].p2.scale(s);
+	path[i].p3.scale(s);
+}
+
+function cubic_bezier(bp, t)
+{
+	var p = new point2d(0, 0);
+	
+	t0 = (1-t) * (1-t) * (1-t);
+	t1 = 3 * (1-t) * (1-t) * t;
+	t2 = 3 * (1-t) * t * t;
+	t3 = t * t * t;
+	
+	p.assign( bp.p0.x * t0 + bp.p1.x * t1 + bp.p2.x * t2 + bp.p3.x * t3,
+			  bp.p0.y * t0 + bp.p1.y * t1 + bp.p2.y * t2 + bp.p3.y * t3 );
+	
+	return p;
+}
+
+// HTML funcs
+
+function debug(str)
+{
+	elm("debug").innerHTML = str;
+}
+
+function elm(id)
+{
+	return document.getElementById( id );
+}
+
+// Game actions
+
+var offset = new point2d(300, 200);
+var frog_head = new point2d(-10, -10);
+var frog_vec = new point2d(0, 0);
+
+var screen_center = new point2d( screen.availWidth / 2, screen.availHeight / 2 );
+
+var curve_lengths = Array();
+
+var my_ball_ctr = 0;
+
+function in_screen(pt)
+{
+	return ( pt.x > 0 && pt.x < screen.availWidth && pt.y > 0 && pt.y < screen.availHeight );
+}
+
+function update_frog(e)
+{
+	vec_length = distance( new point2d(e.clientX, e.clientY), screen_center );
+	normalizer = 1 / vec_length;
+
+	frog_vec.assign( (e.clientX - screen_center.x) * normalizer,
+					 (e.clientY - screen_center.y) * normalizer );
+		
+	frog_head.assign(screen_center.x + frog_vec.x * 50, screen_center.y + frog_vec.y * 50 );
+}
+
+function throw_my_ball()
+{
+	if (my_balls.length < 5)
+	{
+		new_b = my_balls.length;
+		elm("my_ball" + new_b).style.display = "block";	
+	
+		my_balls.push( new my_ball(new_b) );
+	}
+}
+
+function remove_my_ball(i)
+{
+	elm("my_ball" + my_balls[i].elm_i).style.display = "none";
+	my_balls.splice(i, 1);	
+}
+
+function move_all()
+{
+	for (b in balls)
+	{
+		balls[b].move();
+		
+		elm("ball" + b).style.left = Math.round(offset.x + balls[b].pos.x) + "px";
+		elm("ball" + b).style.top = Math.round(offset.y + balls[b].pos.y) + "px";
+		debug("b");
+	}
+	
+	for (b=0; b<my_balls.length; b++)
+	{
+		my_balls[b].move();
+		
+		if ( !in_screen(my_balls[b].pos) )
+		{
+			remove_my_ball( b );
+		}
+		else
+		{
+			elm("my_ball" + my_balls[b].elm_i).style.left = Math.round(my_balls[b].pos.x) + "px";
+			elm("my_ball" + my_balls[b].elm_i).style.top = Math.round(my_balls[b].pos.y) + "px";
+		}
+		debug("mb");
+	}
+	
+	elm("frog_head").style.left = frog_head.x + "px";
+	elm("frog_head").style.top = frog_head.y + "px";
+	
+	setTimeout( "move_all()", 20 );
+}
+
+var n_ball = 3;
+var balls = Array();
+
+var n_my_ball = 5;
+var my_balls = Array();
+
+function init()
+{
+	for (c in path)
+		curve_lengths[c] = calculate_curve_length( path[c] );
+	
+	for (i=0; i<n_ball; i++)
+	{
+		balls[i] = new ball( new point2d(0, 0) );
+		
+		balls[i].curr_inc = 2 / curve_lengths[0];
+		
+		balls[i].curr_t = balls[i].curr_inc * i * 10;
+		
+		elm("ga").innerHTML = elm("ga").innerHTML + '<img src="ball.png" class="ball" id="ball' + i + ' />';
+	}
+	
+	for (i=0; i<n_my_ball; i++)
+	{
+		elm("ga").innerHTML = elm("ga").innerHTML + '<img src="ball.png" class="my_ball" id="my_ball' + i + ' />';
+	}
+	
+	move_all();
+}
+
+</script>
+
+<style type="text/css">
+
+.ball, .my_ball
+{
+	position: absolute;
+	border: 0px;
+}
+
+.my_ball 
+{
+	display: none;
+}
+
+#debug
+{
+	position: absolute;
+	right: 0px;
+	top: 10px;
+	width: 600px;
+	background-color: #eee;
+}
+
+#frog_head
+{
+	position: absolute;
+	width: 5px; height: 5px;
+	left: -10px; right: -10px;
+	line-height: 5px;
+	background-color: #282;
+}
+
+</style>
+</head>
+
+<body onload="init()" onmousemove="update_frog(event)" onmouseup="throw_my_ball()">
+
+<div id="frog_head"></div>
+
+<div id="ga" title="Game Area" >
+</div>
+
+<div id="debug">- start -</div>
+
+</body>
+
+</html>
